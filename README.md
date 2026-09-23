@@ -6,4 +6,3 @@ Kelompok {SI5J}<br>
 Tahun Ajaran 2026/2027
 Semester Gasal<br><br>
 ![logo atma](logo.png)
-Dhany
