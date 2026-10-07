@@ -27,6 +27,12 @@
             <div class="card-body">
               <h5 class="card-title">Kategori</h5>
               <p class="card-text">
+                <a href="<?= base_url('admin/kategori/tambah') ?>" class="btn btn-labeled btn-primary">
+                    <span class="btn-label">
+                        <i class="fa fa-plus"></i>
+                    </span>
+                    Kategori
+                </a>
                 <div class="card-body">
                   <?php if ($this->session->flashdata('message')) : ?>
                     <?= $this->session->flashdata('message') ?>
