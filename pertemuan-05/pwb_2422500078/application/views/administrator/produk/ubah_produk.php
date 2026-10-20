@@ -62,14 +62,21 @@
                                 </div>
                                 <?php
                                 // get gambar dengan id produk
-                                $list_gambar = $gambar_model->get_by_produk_id($produk['id_produk']);
+                                $list_gambar = $gambar_model->get_by_id_produk($produk['id_produk']);
                                 ?>
                                 <div class="row mb-3">
                                     <?php foreach ($list_gambar as $gambar) : ?>
                                         <div class="col-lg-3">
                                             <div class="card" style="width: 18rem;">
-                                                <img src="<?= base_url('uploads/produk/') . $gambar['nama_gambar'] ?>" class="card-img-top">
-                                                <div class="card-body d-grid">
+                                                <img src="<?= base_url('uploads/produk/') . $gambar['nama_gambar'] ?>" class="card-img-top" id="preview-<?= $gambar['id_gambar'] ?>">
+                                                <div class="card-body d-grid gap-2">
+                                                    <!-- input file tersembunyi, dibuka lewat tombol Ganti -->
+                                                    <input type="file" class="d-none input-ganti-gambar" accept="image/*"
+                                                        name="ganti_gambar[<?= $gambar['id_gambar'] ?>]"
+                                                        id="ganti-<?= $gambar['id_gambar'] ?>"
+                                                        data-preview="preview-<?= $gambar['id_gambar'] ?>">
+                                                    <button type="button" class="btn btn-warning btn-ganti-gambar" data-target="ganti-<?= $gambar['id_gambar'] ?>">Ganti</button>
+                                                    <small class="text-muted text-center d-none" id="info-ganti-<?= $gambar['id_gambar'] ?>"></small>
                                                     <a href="#" class="btn btn-danger">Hapus</a>
                                                 </div>
                                             </div>
@@ -98,3 +105,25 @@
     <!-- /.content -->
 </div>
 <!-- /.content-wrapper -->
+<script>
+    
+    document.querySelectorAll('.btn-ganti-gambar').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.getElementById(btn.dataset.target).click();
+        });
+    });
+
+    document.querySelectorAll('.input-ganti-gambar').forEach(function (input) {
+        input.addEventListener('change', function () {
+            var file = input.files[0];
+            var info = document.getElementById('info-' + input.id);
+            if (!file) {
+                info.classList.add('d-none');
+                return;
+            }
+            document.getElementById(input.dataset.preview).src = URL.createObjectURL(file);
+            info.textContent = 'Gambar baru: ' + file.name + ' (klik Ubah untuk menyimpan)';
+            info.classList.remove('d-none');
+        });
+    });
+</script>

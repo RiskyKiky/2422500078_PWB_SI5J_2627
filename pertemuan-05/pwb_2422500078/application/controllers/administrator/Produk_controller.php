@@ -56,7 +56,16 @@ class Produk_controller extends CI_Controller
         $count = count($_FILES['gambar_produk']['name']);
         if ($count > 0) {
             // jika ada gambar upload
-            $this->_produk_gambar_upload($count, $id_produk);
+            $errors = $this->_produk_gambar_upload($count, $id_produk);
+            if ($errors) {
+                $this->session->set_flashdata('message', '
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <div>Produk tersimpan, tetapi gambar gagal diunggah:<br>' . implode('<br>', $errors) . '</div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                ');
+                redirect('admin/produk');
+            }
         }
         $this->session->set_flashdata('message', '
             <div class="alert alert-success d-flex align-items-center alert-dismissible fade show" role="alert">
@@ -74,6 +83,14 @@ class Produk_controller extends CI_Controller
     }
         private function _produk_gambar_upload($count, $id_produk)
     {
+        $errors = [];
+
+        // buat folder tujuan upload jika belum ada (tanpa folder ini upload gagal diam-diam)
+        if (!is_dir('uploads/produk/')) {
+            mkdir('uploads/produk/', 0777, true);
+        }
+        $this->load->library('upload');
+
         for ($i = 0; $i < $count; $i++) {
             if (!empty($_FILES['gambar_produk']['name'][$i])) {
                 $_FILES['file']['name'] = $_FILES['gambar_produk']['name'][$i];
@@ -88,7 +105,7 @@ class Produk_controller extends CI_Controller
                 // $config['file_name'] = $_FILES['gambar_produk']['name'][$i];
                 $config['file_name'] = "produk-" . $id_produk . '-' . $i;
 
-                $this->load->library('upload', $config);
+                $this->upload->initialize($config);
 
                 if ($this->upload->do_upload('file')) {
                     $uploadData = $this->upload->data();
@@ -98,9 +115,12 @@ class Produk_controller extends CI_Controller
                         'id_produk' => $id_produk
                     ];
                     $this->produk_gambar_model->tambah($data);
+                } else {
+                    $errors[] = $_FILES['gambar_produk']['name'][$i] . ': ' . $this->upload->display_errors('', '');
                 }
             }
         }
+        return $errors;
     }
     public function ubah_produk($id)
     {
@@ -147,7 +167,24 @@ class Produk_controller extends CI_Controller
         ];
 
         $ubah = $this->produk_model->ubah($data, $id);
-        if ($ubah) {
+
+        // ganti gambar yang diubah lewat tombol "Ganti" + tambah gambar baru (jika ada)
+        $this->load->library('upload');
+        $hasil_ganti = $this->_ganti_gambar($id);
+        if (!empty($_FILES['gambar_produk']['name'][0])) {
+            $err_baru = $this->_produk_gambar_upload(count($_FILES['gambar_produk']['name']), $id);
+            $hasil_ganti['errors'] = array_merge($hasil_ganti['errors'], $err_baru);
+        }
+
+        if ($hasil_ganti['errors']) {
+            $pesan_error = implode('<br>', $hasil_ganti['errors']);
+            $this->session->set_flashdata('message', '
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <div>Gagal mengunggah/mengganti gambar:<br>' . $pesan_error . '</div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            ');
+        } elseif ($ubah || $hasil_ganti['berhasil'] > 0) {
             $this->session->set_flashdata('message', '
             <div class="alert alert-success d-flex align-items-center alert-dismissible fade show" role="alert">
                 <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Success:">
@@ -174,6 +211,65 @@ class Produk_controller extends CI_Controller
         }
         redirect('admin/produk');
     }
+    
+    private function _ganti_gambar($id_produk)
+    {
+        $hasil = ['berhasil' => 0, 'errors' => []];
+
+        if (empty($_FILES['ganti_gambar']['name']) || !is_array($_FILES['ganti_gambar']['name'])) {
+            return $hasil;
+        }
+
+        $folder = 'uploads/produk/';
+        if (!is_dir($folder)) {
+            mkdir($folder, 0777, true);
+        }
+
+        foreach ($_FILES['ganti_gambar']['name'] as $id_gambar => $nama) {
+            // lewati jika tidak ada file yang dipilih
+            if (empty($nama) || $_FILES['ganti_gambar']['error'][$id_gambar] === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+
+            // pastikan gambar ada dan memang milik produk ini
+            $gambar_lama = $this->produk_gambar_model->get_by_id($id_gambar);
+            if (!$gambar_lama || $gambar_lama['id_produk'] != $id_produk) {
+                continue;
+            }
+
+            $_FILES['file'] = [
+                'name'     => $_FILES['ganti_gambar']['name'][$id_gambar],
+                'type'     => $_FILES['ganti_gambar']['type'][$id_gambar],
+                'tmp_name' => $_FILES['ganti_gambar']['tmp_name'][$id_gambar],
+                'error'    => $_FILES['ganti_gambar']['error'][$id_gambar],
+                'size'     => $_FILES['ganti_gambar']['size'][$id_gambar],
+            ];
+
+            $config['upload_path']   = $folder;
+            $config['allowed_types'] = 'jpg|jpeg|png|gif';
+            $config['max_size']      = '5000';
+            // time() supaya nama file baru beda dan browser tidak menampilkan gambar lama dari cache
+            $config['file_name']     = 'produk-' . $id_produk . '-' . $id_gambar . '-' . time();
+            $this->upload->initialize($config);
+
+            if ($this->upload->do_upload('file')) {
+                $file_baru = $this->upload->data('file_name');
+                $this->produk_gambar_model->ubah(['nama_gambar' => $file_baru], $id_gambar);
+
+                // hapus file gambar yang lama
+                $path_lama = './' . $folder . $gambar_lama['nama_gambar'];
+                if (is_file($path_lama)) {
+                    unlink($path_lama);
+                }
+                $hasil['berhasil']++;
+            } else {
+                $hasil['errors'][] = $nama . ': ' . $this->upload->display_errors('', '');
+            }
+        }
+
+        return $hasil;
+    }
+
         public function hapus_produk($id)
     {
         // check apakah ada produk
