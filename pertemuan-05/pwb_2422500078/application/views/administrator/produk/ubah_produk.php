@@ -61,7 +61,7 @@
                                     <input class="form-control" type="file" id="gambar_produk" name="gambar_produk[]" multiple>
                                 </div>
                                 <?php
-                                // get gambar dengan id produk
+                                
                                 $list_gambar = $gambar_model->get_by_id_produk($produk['id_produk']);
                                 ?>
                                 <div class="row mb-3">

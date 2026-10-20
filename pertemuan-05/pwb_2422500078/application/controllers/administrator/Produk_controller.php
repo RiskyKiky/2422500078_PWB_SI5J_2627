@@ -49,13 +49,13 @@ class Produk_controller extends CI_Controller
             'deskripsi' => ucfirst($this->input->post('deskripsi_produk'))
         ];
 
-        #simpan dan return id_produk yang disimpan
+        
         $id_produk = $this->produk_model->tambah($data);
-        # simpan data, trus lakukan upload gambar kebalikan id produk
+     
 
         $count = count($_FILES['gambar_produk']['name']);
         if ($count > 0) {
-            // jika ada gambar upload
+
             $errors = $this->_produk_gambar_upload($count, $id_produk);
             if ($errors) {
                 $this->session->set_flashdata('message', '
@@ -85,7 +85,7 @@ class Produk_controller extends CI_Controller
     {
         $errors = [];
 
-        // buat folder tujuan upload jika belum ada (tanpa folder ini upload gagal diam-diam)
+        
         if (!is_dir('uploads/produk/')) {
             mkdir('uploads/produk/', 0777, true);
         }
@@ -124,7 +124,7 @@ class Produk_controller extends CI_Controller
     }
     public function ubah_produk($id)
     {
-        // check dulu apakah id dengan produk ada?
+        
         $produk = $this->produk_model->get_by_id($id);
         if ($produk) {
             $this->form_validation->set_rules('nama_produk', 'Nama produk', 'required');
@@ -168,7 +168,7 @@ class Produk_controller extends CI_Controller
 
         $ubah = $this->produk_model->ubah($data, $id);
 
-        // ganti gambar yang diubah lewat tombol "Ganti" + tambah gambar baru (jika ada)
+        
         $this->load->library('upload');
         $hasil_ganti = $this->_ganti_gambar($id);
         if (!empty($_FILES['gambar_produk']['name'][0])) {
@@ -226,12 +226,12 @@ class Produk_controller extends CI_Controller
         }
 
         foreach ($_FILES['ganti_gambar']['name'] as $id_gambar => $nama) {
-            // lewati jika tidak ada file yang dipilih
+            
             if (empty($nama) || $_FILES['ganti_gambar']['error'][$id_gambar] === UPLOAD_ERR_NO_FILE) {
                 continue;
             }
 
-            // pastikan gambar ada dan memang milik produk ini
+           
             $gambar_lama = $this->produk_gambar_model->get_by_id($id_gambar);
             if (!$gambar_lama || $gambar_lama['id_produk'] != $id_produk) {
                 continue;
@@ -248,7 +248,6 @@ class Produk_controller extends CI_Controller
             $config['upload_path']   = $folder;
             $config['allowed_types'] = 'jpg|jpeg|png|gif';
             $config['max_size']      = '5000';
-            // time() supaya nama file baru beda dan browser tidak menampilkan gambar lama dari cache
             $config['file_name']     = 'produk-' . $id_produk . '-' . $id_gambar . '-' . time();
             $this->upload->initialize($config);
 
@@ -256,7 +255,7 @@ class Produk_controller extends CI_Controller
                 $file_baru = $this->upload->data('file_name');
                 $this->produk_gambar_model->ubah(['nama_gambar' => $file_baru], $id_gambar);
 
-                // hapus file gambar yang lama
+                
                 $path_lama = './' . $folder . $gambar_lama['nama_gambar'];
                 if (is_file($path_lama)) {
                     unlink($path_lama);
@@ -272,21 +271,19 @@ class Produk_controller extends CI_Controller
 
         public function hapus_produk($id)
     {
-        // check apakah ada produk
+        
         $produk = $this->produk_model->get_by_id($id);
         if ($produk) {
-            // ambil data gambar
+            
             $list_gambar = $this->produk_gambar_model->get_by_id_produk($id);
             foreach ($list_gambar as $gambar) {
                 $id_gambar = $gambar['id_gambar'];
                 $nama_gambar = $gambar['nama_gambar'];
-                // hapus gambar di database
                 $this->produk_gambar_model->hapus($id_gambar);
-                // hapus gambar di file
                 $path = './uploads/produk/' . $nama_gambar;
                 unlink($path);
             }
-            // hapus produk di database
+            
             $this->produk_model->hapus($id);
             $this->session->set_flashdata('message', '
             <div class="alert alert-success d-flex align-items-center alert-dismissible fade show" role="alert">
